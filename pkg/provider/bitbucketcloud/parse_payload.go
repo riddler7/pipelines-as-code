@@ -148,7 +148,6 @@ func (v *Provider) ParsePayload(ctx context.Context, run *params.Run, request *h
 		processedEvent.PullRequestNumber = e.PullRequest.ID
 		processedEvent.PullRequestTitle = e.PullRequest.Title
 	case *types.PushRequestEvent:
-		processedEvent.Event = "push"
 		processedEvent.TriggerTarget = "push"
 		processedEvent.EventType = "push"
 		processedEvent.Organization = e.Repository.Workspace.Slug
