@@ -26,6 +26,8 @@ func TestParsePayload(t *testing.T) {
 		expectedAccountID         string
 		expectedSHA               string
 		expectedRef               string
+		expectedHeadBranch        string
+		expectedHeadURL           string
 		eventType                 string
 		sourceIP                  string
 		allowedConfig             map[string]map[string]string
@@ -34,24 +36,64 @@ func TestParsePayload(t *testing.T) {
 		cancelPipelinerun         string
 	}{
 		{
-			name:              "parse push request",
-			payloadEvent:      bbcloudtest.MakePushEvent("PushAccountID", "Barbie", "slighlyhashed", "branch"),
-			expectedSender:    "Barbie",
-			expectedAccountID: "PushAccountID",
-			expectedSHA:       "slighlyhashed",
-			expectedRef:       "mychange",
-			eventType:         "repo:push",
-			expectedEventType: triggertype.Push.String(),
+			name:               "parse push request",
+			payloadEvent:       bbcloudtest.MakePushEvent("PushAccountID", "Barbie", "slighlyhashed", "branch"),
+			expectedSender:     "Barbie",
+			expectedAccountID:  "PushAccountID",
+			expectedSHA:        "slighlyhashed",
+			expectedRef:        "mychange",
+			expectedHeadBranch: "mychange",
+			expectedHeadURL:    "https://vavar/commit/veryold",
+			eventType:          "repo:push",
+			expectedEventType:  triggertype.Push.String(),
 		},
 		{
-			name:              "parse push tag",
-			payloadEvent:      bbcloudtest.MakePushEvent("PushAccountID", "Barbie", "slighlyhashed", "tag"),
-			expectedSender:    "Barbie",
-			expectedAccountID: "PushAccountID",
-			expectedSHA:       "slighlyhashed",
-			expectedRef:       "refs/tags/mychange",
-			eventType:         "repo:push",
-			expectedEventType: triggertype.Push.String(),
+			name:               "parse push tag",
+			payloadEvent:       bbcloudtest.MakePushEvent("PushAccountID", "Barbie", "slighlyhashed", "tag"),
+			expectedSender:     "Barbie",
+			expectedAccountID:  "PushAccountID",
+			expectedSHA:        "slighlyhashed",
+			expectedRef:        "refs/tags/mychange",
+			expectedHeadBranch: "refs/tags/mychange",
+			expectedHeadURL:    "https://vavar/commit/slighlyhashed",
+			eventType:          "repo:push",
+			expectedEventType:  triggertype.Push.String(),
+		},
+		{
+			name: "parse push branch creation",
+			payloadEvent: json.RawMessage(`{
+				"actor": {"account_id": "PushAccountID", "nickname": "Barbie"},
+				"push": {"changes": [{
+					"new": {"type": "branch", "name": "mychange", "target": {"hash": "slighlyhashed", "links": {"html": {"href": "https://vavar/commit/slighlyhashed"}}}},
+					"old": null
+				}]},
+				"repository": {"name": "repo", "full_name": "org/repo", "workspace": {"slug": "org"}, "links": {"html": {"href": "https://vavar/repo/org"}}}
+			}`),
+			expectedSender:     "Barbie",
+			expectedAccountID:  "PushAccountID",
+			expectedSHA:        "slighlyhashed",
+			expectedRef:        "mychange",
+			expectedHeadBranch: "mychange",
+			expectedHeadURL:    "https://vavar/commit/slighlyhashed",
+			eventType:          "repo:push",
+			expectedEventType:  triggertype.Push.String(),
+		},
+		{
+			name: "parse push branch deletion",
+			payloadEvent: json.RawMessage(`{
+				"actor": {"account_id": "PushAccountID", "nickname": "Barbie"},
+				"push": {"changes": [{
+					"new": null,
+					"old": {"type": "branch", "name": "mychange", "target": {"hash": "slighlyhashed", "links": {"html": {"href": "https://vavar/commit/slighlyhashed"}}}}
+				}]},
+				"repository": {"name": "repo", "full_name": "org/repo", "workspace": {"slug": "org"}, "links": {"html": {"href": "https://vavar/repo/org"}}}
+			}`),
+			expectedSender:     "Barbie",
+			expectedAccountID:  "PushAccountID",
+			expectedHeadBranch: "mychange",
+			expectedHeadURL:    "https://vavar/commit/slighlyhashed",
+			eventType:          "repo:push",
+			expectedEventType:  triggertype.Push.String(),
 		},
 		{
 			name:              "parse pull request",
@@ -269,6 +311,12 @@ func TestParsePayload(t *testing.T) {
 
 			if tt.expectedRef != "" {
 				assert.Equal(t, tt.expectedRef, got.BaseBranch, tt.expectedRef, got.BaseBranch)
+			}
+			if tt.expectedHeadBranch != "" {
+				assert.Equal(t, tt.expectedHeadBranch, got.HeadBranch)
+			}
+			if tt.expectedHeadURL != "" {
+				assert.Equal(t, tt.expectedHeadURL, got.HeadURL)
 			}
 			if tt.targetPipelinerun != "" {
 				assert.Equal(t, tt.targetPipelinerun, got.TargetTestPipelineRun, tt.targetPipelinerun, got.TargetTestPipelineRun)

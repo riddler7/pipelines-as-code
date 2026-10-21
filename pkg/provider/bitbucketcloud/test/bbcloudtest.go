@@ -342,28 +342,33 @@ func MakePushEvent(accountid, nickname, sha, changeType string) types.PushReques
 	if sha == "" {
 		sha = "chatchien"
 	}
+	change := types.Change{
+		New: types.ChangeType{
+			Name: "mychange",
+			Target: types.Commit{
+				Hash:  sha,
+				Links: types.Links{HTML: types.HTMLLink{HRef: "https://vavar/commit/" + sha}},
+			},
+			Type: changeType,
+		},
+	}
+	// Bitbucket sends "old": null for tag pushes and branch creation.
+	if changeType == "branch" {
+		change.Old = types.ChangeType{
+			Name: "mychange",
+			Target: types.Commit{
+				Hash:  "veryold",
+				Links: types.Links{HTML: types.HTMLLink{HRef: "https://vavar/commit/veryold"}},
+			},
+		}
+	}
 	return types.PushRequestEvent{
 		Actor: types.User{
 			AccountID: accountid,
 			Nickname:  nickname,
 		},
 		Push: types.Push{
-			Changes: []types.Change{
-				{
-					New: types.ChangeType{
-						Name: "mychange",
-						Target: types.Commit{
-							Hash: sha,
-						},
-						Type: changeType,
-					},
-					Old: types.ChangeType{
-						Target: types.Commit{
-							Hash: "veryold",
-						},
-					},
-				},
-			},
+			Changes: []types.Change{change},
 		},
 		Repository: types.Repository{
 			Workspace: types.Workspace{

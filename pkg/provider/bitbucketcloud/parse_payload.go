@@ -1,6 +1,7 @@
 package bitbucketcloud
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -154,13 +155,16 @@ func (v *Provider) ParsePayload(ctx context.Context, run *params.Run, request *h
 		processedEvent.Repository = strings.Split(e.Repository.FullName, "/")[1]
 		processedEvent.SHA = e.Push.Changes[0].New.Target.Hash
 		processedEvent.URL = e.Repository.Links.HTML.HRef
-		processedEvent.HeadBranch = e.Push.Changes[0].Old.Name
-		processedEvent.BaseURL = e.Push.Changes[0].New.Target.Links.HTML.HRef
-		processedEvent.HeadURL = e.Push.Changes[0].Old.Target.Links.HTML.HRef
-		if e.Push.Changes[0].New.Type == "tag" {
-			processedEvent.BaseBranch = fmt.Sprintf("refs/tags/%s", e.Push.Changes[0].New.Name)
+		change := e.Push.Changes[0]
+		processedEvent.BaseURL = change.New.Target.Links.HTML.HRef
+		// Bitbucket sends "old": null for tag pushes and branch creation.
+		processedEvent.HeadURL = cmp.Or(change.Old.Target.Links.HTML.HRef, processedEvent.BaseURL)
+		if change.New.Type == "tag" {
+			processedEvent.BaseBranch = fmt.Sprintf("refs/tags/%s", change.New.Name)
+			processedEvent.HeadBranch = processedEvent.BaseBranch
 		} else {
-			processedEvent.BaseBranch = e.Push.Changes[0].New.Name
+			processedEvent.BaseBranch = change.New.Name
+			processedEvent.HeadBranch = cmp.Or(change.Old.Name, change.New.Name)
 		}
 		processedEvent.AccountID = e.Actor.AccountID
 		processedEvent.Sender = e.Actor.Nickname
